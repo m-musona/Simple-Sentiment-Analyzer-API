@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Analysis</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Sentiment Analysis Service</h1>
+        <p>Submit text and analyse its contents with an AI-powered model.</p>
+        <form id="textForm" enctype="multipart/form-data">
+            <textarea id="textInput" name="text" rows="2" cols="50" style="resize: vertical;">
+            </textarea>
+
+            <label for="modelSelect">Choose a Model:</label>
+            <select id="modelSelect" name="model" required>
+                <option value="" disabled selected>Select a model</option>
+                <option value="sia">Sentiment Intensity Analyzer</option>
+                <option value="roberta">Twitter Roberta Base Sentiment</option>
+            </select>
+
+            <button type="submit">Check Sentiment</button>
+        </form>
+    </div>
+
+    <!-- Loading bar -->
+    <div id="loadingBar" class="loading-bar"></div>
+
+    <!-- Pop-up for response messages -->
+    <div id="responseMessage" class="popup-message"></div>
+
+    <!-- Results container -->
+    <div id="results" class="results" style="display: none;">
+        <h1>Analysis Results</h1>
+        <ul id="resultsList"></ul>
+    </div>
+    
+</body>
+<script>
+    document.getElementById('textForm').addEventListener('submit', async (event) => {
+        event.preventDefault(); // Prevent the form from reloading the page
+        
+        const textInput = document.getElementById('textInput').value;
+        const selectedModel = document.getElementById('modelSelect').value;
+        const loadingBar = document.getElementById('loadingBar');
+
+        // Show the loading bar
+        loadingBar.style.display = 'block';
+
+        try {
+            const response = await fetch('http://127.0.0.1:8000/analyse-text', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: textInput, model: selectedModel })
+            });
+
+            // Hide the loading bar
+            loadingBar.style.display = 'none';
+
+            const resultsContainer = document.getElementById('results');
+            const resultsList = document.getElementById('resultsList');
+
+            if (response.ok) {
+                const data = await response.json();
+                responseMessage.innerText = data.message;
+                showMessagePopup();
+
+                // Clear existing results
+                resultsList.innerHTML = "";
+
+                // Add results dynamically
+                for (const [label, accuracy] of Object.entries(data.results)) {
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `<strong>${label}</strong>: ${accuracy}`;
+                    resultsList.appendChild(listItem);
+                }
+
+                // Show the results container
+                resultsContainer.style.display = 'block';
+            } else {
+                const errorData = await response.json();
+
+                responseMessage.innerText = `Error: ${errorData.detail}`;
+                showMessagePopup();
+
+                // Hide the results container
+                resultsContainer.style.display = 'none';
+            }
+        } catch (error) {
+            // Hide the loading bar
+            loadingBar.style.display = 'none';
+
+            document.getElementById('responseMessage').innerText = `An error occurred: ${error.message}`;
+            showMessagePopup();
+
+            // Hide the results container
+            document.getElementById('results').style.display = 'none';
+        }
+    });
+
+    function showMessagePopup() {
+        const responseMessage = document.getElementById('responseMessage');
+        responseMessage.classList.add('show');
+        setTimeout(() => {
+            responseMessage.classList.remove('show');
+        }, 5000); // Pop-up visible for 5 seconds
+    }
+</script>
+</html>
